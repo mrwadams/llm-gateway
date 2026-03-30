@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+      - ./custom_guardrail.py:/app/custom_guardrail.py
+    environment:
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    expose:
+      - "8080"
+    volumes:
+      - open_webui_data:/app/backend/data
+    environment:
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DEFAULT_USER_ROLE: ${DEFAULT_USER_ROLE}
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP}
+      ENABLE_OLLAMA_API: ${ENABLE_OLLAMA_API}
+      ENABLE_ADMIN_CHAT_ACCESS: ${ENABLE_ADMIN_CHAT_ACCESS}
+      ENABLE_ADMIN_EXPORT: ${ENABLE_ADMIN_EXPORT}
+      USER_PERMISSIONS_CHAT_DELETE: ${USER_PERMISSIONS_CHAT_DELETE}
+      USER_PERMISSIONS_CHAT_EDIT: ${USER_PERMISSIONS_CHAT_EDIT}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+    depends_on:
+      - litellm
+
+  caddy:
+    build: ./caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+    depends_on:
+      - open-webui
+
+volumes:
+  postgres_data:
+  open_webui_data:
+  caddy_data:
+  caddy_config:
