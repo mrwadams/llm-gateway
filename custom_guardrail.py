@@ -33,6 +33,14 @@ class ChildSafetyGuardrail(CustomGuardrail):
             if isinstance(content, str):
                 self._check_content(content)
 
+    async def async_post_call_success_hook(self, data, user_api_key_dict, response):
+        if hasattr(response, "choices"):
+            for choice in response.choices:
+                if hasattr(choice, "message") and hasattr(choice.message, "content"):
+                    content = choice.message.content
+                    if isinstance(content, str):
+                        self._check_content(content)
+
     def _check_content(self, text: str):
         text_lower = text.lower()
         for pattern in BLOCKED_PATTERNS:

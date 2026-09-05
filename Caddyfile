@@ -8,3 +8,71 @@ chat.mattadams.tech {
 
 	reverse_proxy open-webui:8080
 }
+
+docs.mattadams.tech {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		resolvers 192.168.10.1
+		propagation_delay 30s
+		propagation_timeout 5m
+	}
+
+	basic_auth {
+		matt {env.DOCS_BASIC_AUTH_HASH}
+	}
+
+	# T4: MarkServ renders markdown with markdown-it html:true and no sanitizer,
+	# so raw <script>/onerror in a pushed .md is served verbatim. agent-1 can write
+	# to this web root, so CSP is the control that stops a compromised agent turning
+	# a doc into stored XSS. The three script hashes are MarkServ's own inline
+	# blocks (theme toggle, width slider, livereload WebSocket client) - they are
+	# byte-identical on every page, so an injected inline script fails the hash and
+	# is blocked. Re-hash these if the MarkServ image is rebuilt to a newer SHA.
+	# No 'unsafe-inline' anywhere: that would also re-enable onerror= handlers.
+	# font-src needs data: for the octicons-anchor woff embedded in the theme CSS.
+	# MathJax (cdn.jsdelivr.net) is deliberately not allowed - MarkServ injects it
+	# whenever a page contains a $, which here is shell variables in code fences,
+	# never real equations. connect-src is left at default-src 'none': MarkServ's
+	# only network call is a livereload WebSocket hardcoded to ws://localhost:8081,
+	# which the browser already blocks as mixed content over HTTPS, so denying
+	# fetch/XHR/WebSocket outright costs nothing and closes the exfil channel.
+	header {
+		Content-Security-Policy "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; script-src 'sha256-1T5y/hDCvdvwIXxGKcuFHzvKJ2Hw0vkwx27lVjWGBP4=' 'sha256-pHsIrHz+JepDaBK4THwZ3ttoPZUz/6WwrVJTgEM56LY=' 'sha256-pYWgwJK2Hkf0Eq6eh2Vvw+Ofw+1Aiagv07K6ziByzsw='; style-src 'self'; img-src 'self'; font-src 'self' data:"
+	}
+
+	reverse_proxy homelab-docs:8080
+}
+
+ntfy.mattadams.tech {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		resolvers 192.168.10.1
+		propagation_delay 30s
+		propagation_timeout 5m
+	}
+
+	reverse_proxy ntfy:80
+}
+
+home.mattadams.tech {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		resolvers 192.168.10.1
+		propagation_delay 30s
+		propagation_timeout 5m
+	}
+
+	reverse_proxy homepage:3000
+}
+
+cricket.mattadams.tech {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		resolvers 192.168.10.1
+		propagation_delay 30s
+		propagation_timeout 5m
+	}
+
+	root * /srv/release-point
+	file_server
+}

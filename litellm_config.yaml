@@ -12,11 +12,32 @@ model_list:
       max_tokens: 131072
       max_input_tokens: 204800
 
+  - model_name: DeepSeek-V4-Pro
+    litellm_params:
+      model: openrouter/deepseek/deepseek-v4-pro
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 30
+      tpm: 250000
+    model_info:
+      input_cost_per_token: 0.000000435
+      output_cost_per_token: 0.00000087
+      max_input_tokens: 1000000
+
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/DATABASE_URL
   store_model_in_db: true
   store_prompts_in_spend_logs: true
+  # Budget alerts only. "webhook" POSTs a WebhookEvent to WEBHOOK_URL, which is
+  # the ntfy-relay; send_webhook_alert() is implemented for budget_alerts alone,
+  # so widening alert_types here would add nothing but noise.
+  # "slack" has to be present even though nothing goes to Slack: ProxyLogging
+  # .budget_alerts() only calls into SlackAlerting when "slack" is in this list,
+  # and the webhook branch lives inside SlackAlerting.send_alert(). "webhook" is
+  # what actually posts the structured event to WEBHOOK_URL (the ntfy relay);
+  # the Slack-shaped duplicate goes to SLACK_WEBHOOK_URL, pointed at /discard.
+  alerting: ["slack", "webhook"]
+  alert_types: ["budget_alerts"]
 
 litellm_settings:
   drop_params: true

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.14-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -15,24 +15,30 @@ services:
       retries: 5
 
   litellm:
-    image: ghcr.io/berriai/litellm:main-stable
+    image: ghcr.io/berriai/litellm:v1.94.0
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     volumes:
       - ./litellm_config.yaml:/app/config.yaml
       - ./custom_guardrail.py:/app/custom_guardrail.py
     environment:
       MINIMAX_API_KEY: ${MINIMAX_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       DATABASE_URL: ${DATABASE_URL}
+      # Budget alerts -> ntfy, via the relay in the ntfy compose project.
+      # LiteLLM's send_webhook_alert() hardcodes its headers, so it cannot
+      # carry ntfy's bearer token itself; the relay adds auth and formatting.
+      WEBHOOK_URL: http://ntfy-relay:8099/
+      SLACK_WEBHOOK_URL: http://ntfy-relay:8099/discard
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     depends_on:
       postgres:
         condition: service_healthy
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.11.0
     restart: unless-stopped
     expose:
       - "8080"
@@ -60,10 +66,15 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
+      - /home/matt/release-point:/srv/release-point:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+      DOCS_BASIC_AUTH_HASH: ${DOCS_BASIC_AUTH_HASH}
+    networks:
+      default: {}
+      edge: {}
     depends_on:
       - open-webui
 
@@ -72,3 +83,7 @@ volumes:
   open_webui_data:
   caddy_data:
   caddy_config:
+
+networks:
+  edge:
+    external: true

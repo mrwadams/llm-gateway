@@ -11,8 +11,9 @@ A self-hosted LLM gateway stack combining [LiteLLM](https://github.com/BerriAI/l
 
 ## Features
 
-- **Child safety guardrail** — A custom pre-call guardrail that blocks dangerous or inappropriate content before it reaches the LLM
+- **Child safety guardrail** — A custom guardrail that blocks dangerous or inappropriate content, checked both on the way in and on the model's reply
 - **Spend tracking** — Per-key and per-model cost tracking via LiteLLM + PostgreSQL
+- **Budget alerts** — LiteLLM posts a webhook when a budget threshold is crossed; here it goes to a relay that forwards to [ntfy](https://ntfy.sh/)
 - **Rate limiting** — Configurable RPM/TPM limits per model
 
 ## Prerequisites
@@ -38,6 +39,10 @@ A self-hosted LLM gateway stack combining [LiteLLM](https://github.com/BerriAI/l
 
 3. Update the `Caddyfile` with your domain.
 
+   The committed file is the one running on the author's box, so it carries
+   four vhosts belonging to other services on the same host alongside
+   `chat` (the gateway's own). Keep the `chat` block and drop the rest.
+
 4. Start the stack:
 
    ```bash
@@ -51,3 +56,15 @@ A self-hosted LLM gateway stack combining [LiteLLM](https://github.com/BerriAI/l
 - **Models** — Add or modify models in `litellm_config.yaml`
 - **Guardrails** — Edit blocked patterns in `custom_guardrail.py`
 - **TLS/Domain** — Update the domain and DNS settings in `Caddyfile`
+- **Secrets** — Everything sensitive is read from the environment. `.env` is
+  gitignored; `.env.example` lists every variable the stack expects. Note that
+  Compose interpolates `.env` values, so a bcrypt hash has to be written with
+  each `$` doubled.
+
+## Alerting
+
+Budget alerts are the only alert type wired up. `alerting: ["slack", "webhook"]`
+in `litellm_config.yaml` looks odd but is deliberate — LiteLLM only reaches its
+webhook branch when `slack` is in the list, so the Slack-shaped duplicate is
+pointed at a `/discard` path and the real event goes to `WEBHOOK_URL`. The
+comments in that file explain it in full.
