@@ -76,3 +76,9 @@ cricket.mattadams.tech {
 	root * /srv/release-point
 	file_server
 }
+
+# Limes End Cottage 3D walkthrough. LAN-only, plain HTTP on a port (no hostname).
+:8095 {
+	root * /srv/house-walkthrough
+	file_server
+}

@@ -64,9 +64,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8095:8095"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - /home/matt/release-point:/srv/release-point:ro
+      - /home/matt/house-walkthrough:/srv/house-walkthrough:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
